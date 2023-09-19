@@ -19,11 +19,13 @@ func (b *Binding) ArgName() string {
 // ArgType returns the argument type based on the arg name.
 func (b *Binding) ArgType() string {
 	switch b.ArgName() {
-	case "name", "value":
+	case "name", "pivot", "value":
 		return "string"
 	case "names":
 		return "[]string"
-	default:
+	case "start", "end", "index", "offset":
 		return "int64"
+	default:
+		return "int64" // You can adjust this to another default if needed.
 	}
 }

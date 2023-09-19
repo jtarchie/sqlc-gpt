@@ -7,20 +7,30 @@ import (
 	"text/template"
 
 	"github.com/jtarchie/sqlc/parser"
+	"github.com/alecthomas/kong"
 )
+
+type CLI struct {
+	Glob        string `required:"" help:"glob to look for *.sql files"`
+	Filename    string `required:"" help:"location to write the file"`
+	PackageName string `required:"" default:"main" help:"the package name to the file"`
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	slog.SetDefault(logger)
 
-	err := execute()
+	cli := &CLI{}
+	ctx := kong.Parse(cli)
+
+	err := ctx.Run()
 	if err != nil {
 		slog.Error("could not execute", slog.String("error", err.Error()))
 	}
 }
 
-func execute() error {
-	queries, err := parser.Load("/Users/jtarchie/workspace/sqlettus/db/drivers/sqlite/*.sql")
+func (c *CLI) Run() error {
+	queries, err := parser.Load(c.Glob)
 	if err != nil {
 		return fmt.Errorf("could not parse SQL files: %w", err)
 	}
@@ -30,8 +40,8 @@ func execute() error {
 		return fmt.Errorf("could not validate queries: %w", err)
 	}
 
-	data := map[string]interface{}{ // Fill in this data from the parsed SQL files
-		"PackageName":   "blah",
+	data := map[string]interface{}{
+		"PackageName":   c.PackageName,
 		"ParsedQueries": queries,
 	}
 
@@ -40,7 +50,7 @@ func execute() error {
 		return fmt.Errorf("could not parse template: %w", err)
 	}
 
-	file, err := os.Create("test/test.go")
+	file, err := os.Create(c.Filename)
 	if err != nil {
 		return fmt.Errorf("could create file: %w", err)
 	}

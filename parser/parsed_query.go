@@ -2,6 +2,7 @@ package parser
 
 import (
 	"regexp"
+	"sort"
 	"strconv"
 )
 
@@ -17,13 +18,13 @@ func NewParsedQuery(name, type_, sql, filename string, line int) *ParsedQuery {
 	return &ParsedQuery{name, type_, sql, filename, line}
 }
 
-func (pq *ParsedQuery) SQLWithBindings() *QueryWithBinding {
+func (pq *ParsedQuery) Bindings() []*Binding {
 	namedToIndexed := make(map[string]string)
 	index := 0
 
 	// Replace named parameters with indexed placeholders
 	regex := regexp.MustCompile(`@(\w+)`)
-	modifiedSQL := regex.ReplaceAllStringFunc(pq.SQL, func(match string) string {
+	_ = regex.ReplaceAllStringFunc(pq.SQL, func(match string) string {
 		// If the named parameter has not been seen before, increase the index and store the mapping
 		name := match[1:]
 		if _, exists := namedToIndexed[name]; !exists {
@@ -39,7 +40,11 @@ func (pq *ParsedQuery) SQLWithBindings() *QueryWithBinding {
 		bindings = append(bindings, NewBinding(name, placeholder))
 	}
 
-	return NewQueryWithBinding(modifiedSQL, bindings)
+	sort.Slice(bindings, func(i, j int) bool {
+		return bindings[i].Name < bindings[j].Name
+	})
+
+	return bindings
 }
 
 func (pq *ParsedQuery) Prepared() bool {
