@@ -1,4 +1,4 @@
-module github.com/jtarchie/sqlc
+module github.com/jtarchie/sqlc-gpt
 
 go 1.21.1
 

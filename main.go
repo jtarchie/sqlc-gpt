@@ -15,7 +15,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/gosimple/slug"
-	"github.com/jtarchie/sqlc/parser"
+	"github.com/jtarchie/sqlc-gpt/parser"
 	"github.com/jtarchie/worker"
 	"github.com/sashabaranov/go-openai"
 )

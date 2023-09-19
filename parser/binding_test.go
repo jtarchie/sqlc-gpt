@@ -1,7 +1,7 @@
 package parser_test
 
 import (
-	"github.com/jtarchie/sqlc/parser"
+	"github.com/jtarchie/sqlc-gpt/parser"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
