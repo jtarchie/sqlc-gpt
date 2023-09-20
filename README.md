@@ -20,3 +20,12 @@ This tool is designed to transform SQL queries into Go code. The transformation 
 1. Clone the repository.
 2. Navigate to the repository directory.
 3. Run `go build` to compile the tool.
+
+## Examples
+
+```bash
+# generates files based off of examples/sql files
+go run github.com/jtarchie/sqlc-gpt --glob='./examples/sql/*.sql' --output-dir=./examples/code/ --package-name=code
+# fix go imports, because for some reason ChatGPT just can't get it
+goimports -w examples/code/
+```
