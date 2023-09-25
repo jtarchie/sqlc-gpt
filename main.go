@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,11 +20,11 @@ import (
 )
 
 type CLI struct {
-	Glob              string `required:"" help:"glob to look for *.sql files"`
-	OutputDir         string `required:"" help:"location to write the files to"`
-	PackageName       string `required:"" default:"main" help:"the package name to the file"`
-	OpenAIAccessToken string `help:"the API token for the OpenAI API" required:"" env:"OPENAI_ACCESS_TOKEN"`
-	BaseURL           string `help:"url of the OpenAI HTTP domain" default:"https://api.openai.com/v1"`
+	Glob              string `help:"glob to look for *.sql files"   required:""`
+	OutputDir         string `help:"location to write the files to" required:""`
+	PackageName       string `default:"main"                        help:"the package name to the file"     required:""`
+	OpenAIAccessToken string `env:"OPENAI_ACCESS_TOKEN"             help:"the API token for the OpenAI API" required:""`
+	BaseURL           string `default:"https://api.openai.com/v1"   help:"url of the OpenAI HTTP domain"`
 }
 
 func main() {
@@ -61,6 +61,7 @@ func (c *CLI) executePrompt(query *parser.ParsedQuery, prompt string) (string, e
 	)
 
 	slog.Info("open ai finished", slog.String("name", query.Name))
+
 	if err != nil {
 		return "", fmt.Errorf("could not translate: %w", err)
 	}
@@ -77,6 +78,7 @@ func logError(message string, err error, query *parser.ParsedQuery) {
 	slog.Error(message, slog.String("error", err.Error()), slog.String("name", query.Name))
 }
 
+//nolint:funlen,cyclop
 func (c *CLI) Run() error {
 	queries, err := parser.Load(c.Glob)
 	if err != nil {
@@ -93,7 +95,8 @@ func (c *CLI) Run() error {
 		return fmt.Errorf("could not create output directory: %w", err)
 	}
 
-	workers := worker.New(2, 2, func(index int, query *parser.ParsedQuery) {
+	queueSize := 2
+	workers := worker.New(queueSize, queueSize, func(index int, query *parser.ParsedQuery) {
 		filename := filepath.Join(c.OutputDir, fmt.Sprintf("%s.go", slug.Make(query.Name)))
 
 		slog.Info("executing prompt", slog.String("name", query.Name))
@@ -106,19 +109,23 @@ func (c *CLI) Run() error {
 
 		buffer := &bytes.Buffer{}
 
-		t, err := template.New("promptTemplate").Parse(prompt)
+		promptTemplate, err := template.New("promptTemplate").Parse(prompt)
 		if err != nil {
 			logError("could not parse template", err, query)
+
 			return
 		}
 
-		err = t.Execute(buffer, data)
+		err = promptTemplate.Execute(buffer, data)
 		if err != nil {
 			logError("could execute template", err, query)
+
 			return
 		}
 
-		promptHash := sha1.Sum(buffer.Bytes())
+		hasher := sha256.New()
+		_, _ = hasher.Write(buffer.Bytes())
+		promptHash := hasher.Sum(nil)
 
 		file, err := os.OpenFile(filename, os.O_RDWR, os.ModePerm)
 		if !errors.Is(err, os.ErrNotExist) {
@@ -126,11 +133,13 @@ func (c *CLI) Run() error {
 			contents, err := os.ReadFile(filename)
 			if err != nil {
 				logError("could not read file", err, query)
+
 				return
 			}
 
 			if bytes.Contains(contents, []byte(fmt.Sprintf("%x", promptHash))) {
 				slog.Info("file is up to date", slog.String("filename", filename), slog.String("name", query.Name))
+
 				return
 			}
 		}
@@ -138,6 +147,7 @@ func (c *CLI) Run() error {
 		file, err = os.Create(filename)
 		if err != nil {
 			logError("could not create file", err, query)
+
 			return
 		}
 		defer file.Close()
@@ -145,6 +155,7 @@ func (c *CLI) Run() error {
 		result, err := c.executePrompt(query, strings.TrimSpace(buffer.String()))
 		if err != nil {
 			logError("could not execute prompt", err, query)
+
 			return
 		}
 
@@ -153,15 +164,16 @@ func (c *CLI) Run() error {
 		_, err = fmt.Fprintf(file, "\n%s\n", result)
 		if err != nil {
 			logError("could not write prompt to file", err, query)
+
 			return
 		}
 	})
+
 	defer workers.Close()
 
 	for _, query := range queries {
 		workers.Enqueue(query)
 	}
-
 
 	return nil
 }

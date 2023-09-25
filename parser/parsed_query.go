@@ -14,8 +14,8 @@ type ParsedQuery struct {
 	Line     int
 }
 
-func NewParsedQuery(name, type_, sql, filename string, line int) *ParsedQuery {
-	return &ParsedQuery{name, type_, sql, filename, line}
+func NewParsedQuery(name, queryType, sql, filename string, line int) *ParsedQuery {
+	return &ParsedQuery{name, queryType, sql, filename, line}
 }
 
 func (pq *ParsedQuery) Bindings() []*Binding {
@@ -31,11 +31,12 @@ func (pq *ParsedQuery) Bindings() []*Binding {
 			index++
 			namedToIndexed[name] = "$" + strconv.Itoa(index)
 		}
+
 		return namedToIndexed[name]
 	})
 
 	// Convert map to bindings
-	var bindings []*Binding
+	bindings := []*Binding{}
 	for name, placeholder := range namedToIndexed {
 		bindings = append(bindings, NewBinding(name, placeholder))
 	}
@@ -49,5 +50,6 @@ func (pq *ParsedQuery) Bindings() []*Binding {
 
 func (pq *ParsedQuery) Prepared() bool {
 	regex := regexp.MustCompile(`IN \(@\w+\)`)
+
 	return !regex.MatchString(pq.SQL)
 }

@@ -29,5 +29,6 @@ func (pqs ParsedQueries) Validate() error {
 			return fmt.Errorf("the query name %s appears %d times", key, count)
 		}
 	}
+
 	return nil
 }

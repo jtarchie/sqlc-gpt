@@ -7,7 +7,6 @@ import (
 )
 
 var _ = Describe("Binding", func() {
-
 	Describe("ArgName", func() {
 		It("should return the name without the first character", func() {
 			binding := parser.NewBinding("name", "placeholderValue")
