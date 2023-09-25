@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"text/template"
 
 	"github.com/alecthomas/kong"
@@ -94,11 +93,7 @@ func (c *CLI) Run() error {
 		return fmt.Errorf("could not create output directory: %w", err)
 	}
 
-	var wg sync.WaitGroup
-
 	workers := worker.New(2, 2, func(index int, query *parser.ParsedQuery) {
-		defer wg.Done()
-
 		filename := filepath.Join(c.OutputDir, fmt.Sprintf("%s.go", slug.Make(query.Name)))
 
 		slog.Info("executing prompt", slog.String("name", query.Name))
@@ -161,13 +156,12 @@ func (c *CLI) Run() error {
 			return
 		}
 	})
+	defer workers.Close()
 
 	for _, query := range queries {
-		wg.Add(1)
 		workers.Enqueue(query)
 	}
 
-	wg.Wait()
 
 	return nil
 }
